@@ -20,7 +20,7 @@ pool:
   vmImage: $[ variables.vmImage ]
 
 stages: 
-#  - template: templates/stages/prep-stage.yml
+  - template: templates/stages/prep-stage.yml
 
   - stage: Build_Image_${{ parameters.imageToBuild }}
     displayName: Build image 
