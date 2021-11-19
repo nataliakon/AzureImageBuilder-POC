@@ -1,0 +1,33 @@
+parameters:
+  - name: jobName
+    default: Check_Image_Build_status
+
+
+jobs:
+  - job: ${{ parameters.jobName }}
+    displayName: checking image build status
+    timeoutInMinutes: 360
+    steps:
+      - task: AzureCLI@2
+        inputs: 
+          azureSubscription: $(serviceConnection)
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: | 
+            echo "Checking image build status for $(RGDO_imageTemplateName) in RG $(RGDO_imageTemplateRG)"
+            az image builder wait --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --custom "lastRunStatus.runState!='running'"
+            
+            status="Running"
+            until [[ "$status" == "Failed" || "$status" == "Succeeded" ]]
+            do
+              now=$(date)
+              echo "Status of the run at $now... "
+              status=$(az image builder show --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --query lastRunStatus.runState)
+              echo "Status of template build is ... "
+              echo $status
+              echo "Checking the status in 5 min"
+              sleep 5m
+            done
+
+            echo "Error messages if any... "
+            az image builder show --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --query lastRunStatus.message

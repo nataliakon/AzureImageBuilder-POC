@@ -1,0 +1,22 @@
+# ----------------------------------------------------------------------------------
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+#
+# THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
+# EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES 
+# OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+# ----------------------------------------------------------------------------------
+
+variables:
+
+  deploymentRegion: canadacentral  
+  serviceConnection: <your-value>   # ADO service connection to Azure subscription
+  subscriptionID: <your-value>  # Subscription ID of to deploy to AIB and images
+  vmImage: ubuntu-latest
+  deployOperation: create  # valid options: 'create', 'what-if'
+  var-bashPreInjectScript: 'set -E; function catch { echo "##vso[task.logissue type=error]Caller: $(caller), LineNo: $LINENO, Command: $BASH_COMMAND" ; exit 1 ; } ; echo ; echo "Current working directory: $(pwd)" ; echo ; trap catch ERR'
+  var-bashPostInjectScript: ':'
+  resourceGroupName: <your-value>  # Resource Group to deploy AIB and images. Simplifies the cleanup. 
+  storageaccount: <your-value>   # storage account for customization script. Assuming in the same subscription as AIB deployment
+  storageaccountRG: <your-value>  # storage account resource group for customizations. Assuming in the same subscription as AIB deployment
+  container: <your-value>    # container where the customization scripts would reside 

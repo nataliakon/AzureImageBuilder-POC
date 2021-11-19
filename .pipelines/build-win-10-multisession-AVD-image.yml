@@ -1,0 +1,72 @@
+# ----------------------------------------------------------------------------------
+# THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
+# EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES 
+# OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+# ----------------------------------------------------------------------------------
+
+parameters: 
+  - name: imageToBuild
+    type: string
+    values: 
+      - Windows10MultiSession_21H1
+
+
+trigger: none 
+
+variables: 
+- template: ../config/variables/common.yml
+
+pool: 
+  vmImage: $[ variables.vmImage ]
+
+stages: 
+  - template: templates/stages/prep-stage.yml
+
+  - stage: Build_Image_${{ parameters.imageToBuild }}
+    displayName: Build image 
+    jobs: 
+  
+  # Deploy Resource Group for AIB resources: Azure Compute Gallery (or SIG) and Image definitions
+        - template: templates/jobs/deploy-template-sub.yml
+          parameters:
+            jobName: Deploy_RG_for_AIB
+            templateFile: new-rg.bicep
+            location: $(deploymentRegion)
+            workingDir: $(System.DefaultWorkingDirectory)/bicep-modules
+            parameterArray: 
+              - resourceGroupName $(resourceGroupName)
+              - resourceGroupLocation $(deploymentRegion)
+
+
+# Deploy the AIB including the image definition. The tast will not wait for image template build completion. It will only submit.
+
+        - template:  templates/jobs/deploy-template.yml
+          parameters: 
+           jobName: Deploy_AIB_Image
+           dependsOnJob: Deploy_RG_for_AIB
+           location: $(deploymentRegion)
+           resourceGroupName: $(resourceGroupName)
+           subscriptionID: $(subscriptionID)
+           workingDir: $(System.DefaultWorkingDirectory)
+           templateFile: main-win10-multisession-21h1.bicep
+           parameterArray: 
+            - storageaccountName $(storageaccount)
+            - storageaccountRG $(storageaccountRG)
+            - container $(container)
+
+# Stage to check for the Image template build completition and catch any errors 
+
+  - stage: Wait_for_Image_Build_${{ parameters.imageToBuild }}
+    dependsOn: Build_Image_${{ parameters.imageToBuild }}
+    variables:
+    - name: RGDO_imageTemplateRG
+      value: $[ stageDependencies.Build_Image_${{ parameters.imageToBuild }}.Deploy_AIB_Image.outputs['Deploy_Bicep_Template.RGDO_imageTemplateRG'] ]
+    - name: RGDO_imageTemplateName
+      value: $[ stageDependencies.Build_Image_${{ parameters.imageToBuild }}.Deploy_AIB_Image.outputs['Deploy_Bicep_Template.RGDO_imageTemplateName'] ]
+    displayName: Check for Image build completion and status
+    jobs: 
+        - template:  templates/jobs/check-aib-image-build.yml
+          parameters:
+            jobName: Check_Image_Status_Build_for_${{ parameters.imageToBuild }}
+
+
