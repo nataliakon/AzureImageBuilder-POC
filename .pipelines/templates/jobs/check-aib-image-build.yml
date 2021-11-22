@@ -15,19 +15,22 @@ jobs:
           scriptLocation: 'inlineScript'
           inlineScript: | 
             echo "Checking image build status for $(RGDO_imageTemplateName) in RG $(RGDO_imageTemplateRG)"
-            az image builder wait --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --custom "lastRunStatus.runState!='running'"
-            
-            status="Running"
-            until [[ "$status" == "Failed" || "$status" == "Succeeded" ]]
+            az image builder wait --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --custom "lastRunStatus.runState!='Running'"
+            while true
             do
               now=$(date)
               echo "Status of the run at $now... "
-              status=$(az image builder show --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --query lastRunStatus.runState)
+              STATUS=$(az image builder show --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --query lastRunStatus.runState)
               echo "Status of template build is ... "
-              echo $status
+              echo $STATUS
+              if [ "$STATUS" = "\""Succeeded"\"" ]; then 
+              break
+              fi
+              if [ "$STATUS" = "\""Failed"\"" ]; then 
+              echo "Error messages are ..."
+              az image builder show --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --query lastRunStatus.message
+              break
+              fi
               echo "Checking the status in 5 min"
               sleep 5m
             done
-
-            echo "Error messages if any... "
-            az image builder show --name $(RGDO_imageTemplateName) --resource-group $(RGDO_imageTemplateRG) --query lastRunStatus.message
